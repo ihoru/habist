@@ -4,12 +4,15 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+aiofiles = "*"
+aiohttp = "*"
 fastapi = "*"
-uvicorn = { extras = ["standard"], version = "*" }
-todoist-api-python = "*"
 python-dotenv = "*"
+todoist-api-python = "*"
+uvicorn = { extras = ["standard"], version = "*" }
 
 [dev-packages]
+ipython = "*"
 
 [requires]
 python_version = "3.11"

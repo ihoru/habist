@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -22,40 +22,26 @@ class Due(BaseModel):
 
 
 class Task(BaseModel):
-    added_by_uid: str
-    assigned_by_uid: Any
-    checked: bool
-    child_order: int
-    collapsed: bool
+    id: str
+    user_id: str
     content: str
     description: str
-    added_at: str
+    checked: bool
     completed_at: Any
-    due: Due | None
-    id: str
     is_deleted: bool
-    labels: List
-    parent_id: Any
-    priority: int
     project_id: str
-    responsible_uid: Any
-    section_id: Any
-    sync_id: Any
-    url: str | None
-    user_id: str
 
 
 class Comment(BaseModel):
+    id: str
     content: str
+    posted_uid: str
     item_id: str
+    item: Task
 
 
 class Initiator(BaseModel):
-    email: str
-    full_name: str
     id: str
-    image_id: str
-    is_premium: bool
 
 
 class Webhook(BaseModel):
