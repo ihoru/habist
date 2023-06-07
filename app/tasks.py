@@ -82,7 +82,7 @@ async def comment_added(
     if not tag:
         return
     await data_manager.store(task_id, tag)
-    # await todoist_api.delete_comment(comment.id)
+    await todoist_api.delete_comment(comment.id)
     await todoist_api.add_comment(existio_api.get_tag_url(tag), task_id=task_id)
     await existio_api.attributes_acquire([tag])
     stats = await generate_stats(tag, existio_api)
