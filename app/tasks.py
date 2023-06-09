@@ -51,14 +51,30 @@ async def generate_stats(tag, existio_api: ExistioAPI):
     return result
 
 
-async def find_stats_comment(task_id, todoist_api: TodoistAPIAsync) -> int or None:
-    comments = await todoist_api.get_comments(task_id=task_id)
-    if not comments:
-        return
-    comment = comments[-1]
+def contains_our_emoji(text):
     for emoji in EMOJIS:
-        if comment.content.find(emoji) != -1:
-            return comment.id
+        if text.find(emoji) != -1:
+            return True
+    return False
+
+
+async def find_stats_comments(task_id, todoist_api: TodoistAPIAsync) -> int or None:
+    comments = await todoist_api.get_comments(task_id=task_id)
+    comment_ids = []
+    for comment in comments:
+        if contains_our_emoji(comment.content):
+            comment_ids.append(comment.id)
+    return comment_ids
+
+
+async def post_stats(task_id, tag, existio_api: ExistioAPI, todoist_api: TodoistAPIAsync):
+    stats = await generate_stats(tag, existio_api)
+    comment_ids = await find_stats_comments(task_id, todoist_api)
+    if comment_ids:
+        for comment_id in comment_ids:
+            await todoist_api.delete_comment(comment_id)
+    await todoist_api.add_comment(stats, task_id=task_id)
+    return stats
 
 
 async def comment_added(
@@ -75,8 +91,7 @@ async def comment_added(
     tag = text.splitlines()[0].split(':', maxsplit=1)[1].strip()
     task_id = comment.item_id
     if tag == '-':
-        # release tag
-        await data_manager.remove(task_id)
+        await release_tag(task_id, data_manager, todoist_api, existio_api)
         return
     tag = tag.strip('-').replace(' ', '_')
     if not tag:
@@ -101,13 +116,7 @@ async def task_completed(
     await existio_api.attributes_update([
         AttributeValue(name=tag, date=current_date()),
     ])
-    stats = await generate_stats(tag, existio_api)
-    task_id = task.id
-    comment_id = await find_stats_comment(task_id, todoist_api)
-    if comment_id:
-        await todoist_api.update_comment(comment_id, stats, task_id=task_id)
-    else:
-        await todoist_api.add_comment(stats, task_id=task_id)
+    await post_stats(task.id, tag, existio_api, todoist_api)
 
 
 async def task_uncompleted(
@@ -122,13 +131,7 @@ async def task_uncompleted(
     await existio_api.attributes_update([
         AttributeValue(name=tag, date=current_date(), value=0),
     ])
-    stats = await generate_stats(tag, existio_api)
-    task_id = task.id
-    comment_id = await find_stats_comment(task_id, todoist_api)
-    if comment_id:
-        await todoist_api.update_comment(comment_id, stats, task_id=task_id)
-    else:
-        await todoist_api.add_comment(stats, task_id=task_id)
+    await post_stats(task.id, tag, existio_api, todoist_api)
 
 
 async def task_deleted(
@@ -137,11 +140,28 @@ async def task_deleted(
         todoist_api: TodoistAPIAsync,
         existio_api: ExistioAPI,
 ):
-    tag = await data_manager.get(task.id)
+    await release_tag(task.id, data_manager, todoist_api, existio_api)
+
+
+async def release_tag(
+        task_id: str,
+        data_manager: DataManager,
+        todoist_api: TodoistAPIAsync,
+        existio_api: ExistioAPI,
+):
+    tag = await data_manager.get(task_id)
     if not tag:
         return
-    await data_manager.remove(task.id)
+    await data_manager.remove(task_id)
     await existio_api.attributes_release([tag])
+    delete_comment_ids = []
+    comments = await todoist_api.get_comments(task_id=task_id)
+    for comment in comments:
+        text = comment.content
+        if '/exist.io/' in text or 'existio:' in text or contains_our_emoji(text):
+            delete_comment_ids.append(comment.id)
+    for comment_id in delete_comment_ids:
+        await todoist_api.delete_comment(comment_id)
 
 
 EVEN_MAP = {

@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 __all__ = [
     'API_VERSION',
@@ -10,7 +10,10 @@ __all__ = [
     'Webhook',
 ]
 
-API_VERSION = '9'
+API_VERSION = '8'
+
+
+# API_VERSION = '9'
 
 
 class Due(BaseModel):
@@ -49,7 +52,7 @@ class Webhook(BaseModel):
     user_id: str
     event_data: Task | Comment
     initiator: Initiator
-    version: str
+    version: str = Field(default=API_VERSION, const=True)
 
     class Config:
         schema_extra = {
