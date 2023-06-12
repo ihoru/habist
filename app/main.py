@@ -1,3 +1,6 @@
+import base64
+import hashlib
+import hmac
 import logging
 from typing import Annotated
 
@@ -51,8 +54,21 @@ async def acquired_tags(
 
 
 @app.post('/todoist/')
-async def todoist_webhook(webhook: todoist.Webhook, background_tasks: BackgroundTasks):
-    # TODO: check X-Todoist-Hmac-SHA256: UEEq9si3Vf9yRSrLthbpazbb69kP9+CZQ7fXmVyjhPs=
+async def todoist_webhook(
+        request: Request,
+        webhook: todoist.Webhook,
+        background_tasks: BackgroundTasks,
+        todoist_hmac_sha256=Header(default=None, alias='X-Todoist-HMAC-SHA256'),
+):
+    if not ENV['DEBUG']:
+        calculated_hmac = base64.b64encode(hmac.new(
+            ENV['TODOIST_CLIENT_SECRET'].encode(),
+            msg=await request.body(),
+            digestmod=hashlib.sha256,
+        ).digest())
+        if todoist_hmac_sha256 != calculated_hmac:
+            raise HTTPException(status_code=status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS,
+                                detail='Incorrect X-Todoist-HMAC-SHA256 header')
     if webhook.event_name not in tasks.EVEN_MAP:
         raise RequestValidationError([ErrorWrapper(ValueError('Unknown event'), ('body', 'event_name'))])
     if not (
