@@ -30,7 +30,7 @@ def current_date():
 
 async def generate_stats(tag, existio_api: ExistioAPI):
     today = date.today()
-    date_min = today - timedelta(weeks=2, days=today.weekday())  # get information for the last 3 weeks
+    date_min = today - timedelta(weeks=3, days=today.weekday())  # get information for the last 3 weeks
     values = await existio_api.attribute_values(tag, date_min=date_min, date_max=today)
     result = ""
     curr_date = date_min

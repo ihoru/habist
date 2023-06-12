@@ -1,8 +1,10 @@
 import logging
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, status, BackgroundTasks
+from fastapi import FastAPI, HTTPException, status, BackgroundTasks, Header
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
+from pydantic.error_wrappers import ErrorWrapper
 from starlette.requests import Request
 from todoist_api_python.api_async import TodoistAPIAsync
 
@@ -38,12 +40,21 @@ async def root():
     return 'Hey there!'
 
 
+@app.get('/acquired_tags/')
+async def acquired_tags(
+        authorization: Annotated[str, Header()],
+):
+    if authorization.lower() != f"token {ENV['ACQUIRED_TAGS_TOKEN']}":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Incorrect Authorization token header')
+    data = await data_manager.all()
+    return list(data.values())
+
+
 @app.post('/todoist/')
 async def todoist_webhook(webhook: todoist.Webhook, background_tasks: BackgroundTasks):
     # TODO: check X-Todoist-Hmac-SHA256: UEEq9si3Vf9yRSrLthbpazbb69kP9+CZQ7fXmVyjhPs=
     if webhook.event_name not in tasks.EVEN_MAP:
-        logging.warning('Todoist.webhook: unknown even_name (%s)', webhook.event_name)
-        raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, detail='Unknown event_name')
+        raise RequestValidationError([ErrorWrapper(ValueError('Unknown event'), ('body', 'event_name'))])
     if not (
             (webhook.event_name.startswith('note:') and webhook.initiator.id == webhook.event_data.item.user_id)
             or

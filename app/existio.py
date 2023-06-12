@@ -59,6 +59,8 @@ class ExistioAPI:
         return await self._request('post', path, json=json, **kwargs)
 
     async def attribute_values(self, name, date_min: date, date_max: date):
+        assert (date_max - date_min).days <= self.LIMIT_MAXIMUM_LIMIT, \
+            f'date_max - date_min must be less than {self.LIMIT_MAXIMUM_LIMIT} days'
         params = dict(
             attribute=name,
             limit=self.LIMIT_MAXIMUM_LIMIT,

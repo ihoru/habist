@@ -10,10 +10,7 @@ __all__ = [
     'Webhook',
 ]
 
-API_VERSION = '8'
-
-
-# API_VERSION = '9'
+API_VERSION = '9'
 
 
 class Due(BaseModel):
