@@ -72,6 +72,7 @@ class ExistioAPI:
         return dict(
             (date.fromisoformat(item['date']), int(item['value']))
             for item in result.get('results') or []
+            if item['value'] and item['value'] > 0
         )
 
     async def attributes_acquire(self, names):
