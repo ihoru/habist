@@ -28,20 +28,23 @@ data_manager = DataManager(ENV['DATA_FILENAME'])
 async def process_task(task_id, tag):
     try:
         print(f'starting {task_id = }, {tag = }')
-        stats = await tasks.post_stats(task_id, tag, existio_api, todoist_api)
+        texts = await tasks.post_stats(task_id, tag, todoist_api, existio_api)
         print(f'finished {task_id = }, {tag = }')
     except Exception as e:
-        logging.warning('FAILURE: task ID %s, tag: "%s"', task_id, tag)
+        logging.warning(f'FAILURE: {task_id = }, {tag = }')
+        if ENV['DEBUG']:
+            raise
         logging.error(e)
     else:
-        logging.info('SUCCESS: task ID: %s, tag: "%s"', task_id, tag)
-        logging.debug('Stats:\n%s', stats)
+        logging.info(f'SUCCESS: {task_id = }, {tag = }')
+        logging.debug('Stats:\n%s\n', '--\n'.join(texts))
 
 
 async def main():
     data = await data_manager.all()
     # Uncomment if it's needed to run each task one by one
     # for task_id, tag in data.items():
+    #     # await tasks.delete_relevant_comment(task_id, todoist_api, include_exist_url=False)
     #     await process_task(task_id, tag)
 
     # This will start update in parallel (10x speed increase)

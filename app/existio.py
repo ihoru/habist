@@ -6,6 +6,7 @@ from typing import List, NamedTuple
 import aiohttp
 
 __all__ = [
+    'AttributeValue',
     'ExistioAPI',
 ]
 
@@ -58,7 +59,7 @@ class ExistioAPI:
     async def post(self, path, json=None, **kwargs):
         return await self._request('post', path, json=json, **kwargs)
 
-    async def attribute_values(self, name, date_min: date, date_max: date):
+    async def attribute_values(self, name, date_min: date, date_max: date) -> dict[date, int]:
         assert (date_max - date_min).days <= self.LIMIT_MAXIMUM_LIMIT, \
             f'date_max - date_min must be less than {self.LIMIT_MAXIMUM_LIMIT} days'
         params = dict(
@@ -69,7 +70,7 @@ class ExistioAPI:
         )
         result = await self.get('/attributes/values/', params=params)
         return dict(
-            (date.fromisoformat(item['date']), item['value'])
+            (date.fromisoformat(item['date']), int(item['value']))
             for item in result.get('results') or []
         )
 

@@ -6,19 +6,25 @@ from data_manager import DataManager
 from existio import ExistioAPI, AttributeValue
 from todoist import *
 
-EMOJI_FUTURE = '⬜'
+EMOJI_STATS = '📊'
+EMOJI_EMPTY = '⬜'
 EMOJI_TODAY = '❓'
 EMOJI_SUCCEED = '✅'
 EMOJI_FAILED = '❌'
 
 EMOJIS = [
-    EMOJI_FUTURE,
+    EMOJI_STATS,
+    EMOJI_EMPTY,
     EMOJI_TODAY,
     EMOJI_SUCCEED,
     EMOJI_FAILED,
 ]
 
 DAY_SLICE_HOUR = 5  # next day starts at this hour
+PREVIOUS_MONTHS_STATS = 2
+STATS_HEADER_FORMAT = '# {month} {year} {emoji}'
+PREFIX_COMMAND = 'existio:'  # This is being interpreted as a command
+EXIST_PART_URL = '/exist.io/'
 
 
 def current_date():
@@ -28,16 +34,30 @@ def current_date():
     return now.strftime('%Y-%m-%d')
 
 
-async def generate_stats(tag, existio_api: ExistioAPI):
+def generate_stats_header(month: date):
+    return STATS_HEADER_FORMAT.format(
+        month=month.strftime('%B'),
+        year=month.year,
+        emoji=EMOJI_STATS,
+    )
+
+
+async def generate_stats(tag, month: date, existio_api: ExistioAPI):
+    assert month.day == 1
+    month_end = month + timedelta(days=31)
+    month_end -= timedelta(days=month_end.day)
     today = date.today()
-    date_min = today - timedelta(weeks=3, days=today.weekday())  # get information for the last 3 weeks
-    values = await existio_api.attribute_values(tag, date_min=date_min, date_max=today)
-    result = ""
-    curr_date = date_min
-    end_of_week = today + timedelta(days=6 - today.weekday())
-    while curr_date <= end_of_week:
+
+    values = await existio_api.attribute_values(tag, date_min=month, date_max=month_end)
+    if not values:
+        return
+    result = generate_stats_header(month)
+    # empty days in the beginning of the month for the offset
+    result += '\n' + month.weekday() * EMOJI_EMPTY
+    curr_date = month
+    while curr_date <= month_end:
         if curr_date > today:
-            result += EMOJI_FUTURE
+            result += EMOJI_EMPTY
         elif values.get(curr_date):
             result += EMOJI_SUCCEED
         elif curr_date == today:
@@ -58,17 +78,48 @@ def string_contains(text, *substrings):
     )
 
 
-async def post_stats(task_id, tag, existio_api: ExistioAPI, todoist_api: TodoistAPIAsync):
-    stats = await generate_stats(tag, existio_api)
+async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI):
+    today = date.today()
+    today -= timedelta(days=today.day - 1)
+    months = [
+        today - timedelta(days=30 * i)
+        for i in range(PREVIOUS_MONTHS_STATS + 1)
+    ]
+    months = [
+        month - timedelta(days=month.day - 1)
+        for month in months
+    ]
+    months = list(reversed(months))
+    # print(f'{months = }')
+    generate_months = []
+    delete_comment_ids = []
     comments = await todoist_api.get_comments(task_id=task_id)
-    comment_ids = []
-    for comment in comments:
-        if string_contains(comment.content, *EMOJIS):
-            comment_ids.append(comment.id)
-    for comment_id in comment_ids:
+    for i, month in enumerate(months, start=1):
+        last_month = i == len(months)  # force update
+        header = generate_stats_header(month)
+        if last_month:
+            for comment in comments:
+                if string_contains(comment.content, header):
+                    delete_comment_ids.append(comment.id)
+            generate_months.append(month)
+        else:
+            for comment in comments:
+                if string_contains(comment.content, header):
+                    break
+            else:
+                # if such month does not exist
+                generate_months.append(month)
+    # print(f'{delete_comment_ids = }')
+    # print(f'{generate_months = }')
+    for comment_id in delete_comment_ids:
         await todoist_api.delete_comment(comment_id)
-    await todoist_api.add_comment(stats, task_id=task_id)
-    return stats
+    texts = []
+    for month in generate_months:
+        stats = await generate_stats(tag, month, existio_api)
+        if stats:
+            await todoist_api.add_comment(stats, task_id=task_id)
+            texts.append(stats)
+    return texts
 
 
 async def comment_added(
@@ -77,26 +128,28 @@ async def comment_added(
         todoist_api: TodoistAPIAsync,
         existio_api: ExistioAPI,
 ):
-    if not comment.content.startswith('existio:'):
-        return
     text = comment.content.strip()
-    if not text:
+    if not text.startswith(PREFIX_COMMAND):
         return
-    tag = text.splitlines()[0].split(':', maxsplit=1)[1].strip()
     task_id = comment.item_id
-    if tag == '-':
+    command = text[len(PREFIX_COMMAND)]
+    if command == 'release':
         await release_tag(task_id, data_manager, todoist_api, existio_api)
         return
-    tag = tag.strip('-').replace(' ', '_')
+    elif command == 'update':
+        tag = await data_manager.get(task_id)
+        if tag:
+            await delete_relevant_comment(task_id, todoist_api, include_exist_url=False)
+            await post_stats(task_id, tag, todoist_api, existio_api)
+        return
+    tag = command.strip('-').replace(' ', '_')
     if not tag:
         return
     await data_manager.store(task_id, tag)
-    await todoist_api.delete_comment(comment.id)
     await delete_relevant_comment(task_id, todoist_api)
     await todoist_api.add_comment(existio_api.get_tag_url(tag), task_id=task_id)
     await existio_api.attributes_acquire([tag])
-    stats = await generate_stats(tag, existio_api)
-    await todoist_api.add_comment(stats, task_id=task_id)
+    await post_stats(task_id, tag, todoist_api, existio_api)
 
 
 async def task_completed(
@@ -111,7 +164,7 @@ async def task_completed(
     await existio_api.attributes_update([
         AttributeValue(name=tag, date=current_date()),
     ])
-    await post_stats(task.id, tag, existio_api, todoist_api)
+    await post_stats(task.id, tag, todoist_api, existio_api)
 
 
 async def task_uncompleted(
@@ -126,7 +179,7 @@ async def task_uncompleted(
     await existio_api.attributes_update([
         AttributeValue(name=tag, date=current_date(), value=0),
     ])
-    await post_stats(task.id, tag, existio_api, todoist_api)
+    await post_stats(task.id, tag, todoist_api, existio_api)
 
 
 async def task_deleted(
@@ -152,12 +205,15 @@ async def release_tag(
     await delete_relevant_comment(task_id, todoist_api)
 
 
-async def delete_relevant_comment(task_id: str, todoist_api: TodoistAPIAsync):
+async def delete_relevant_comment(task_id: str, todoist_api: TodoistAPIAsync, include_exist_url=True):
+    search = [PREFIX_COMMAND, *EMOJIS]
+    if include_exist_url:
+        search.append(EXIST_PART_URL)
     comments = await todoist_api.get_comments(task_id=task_id)
     delete_comment_ids = [
         comment.id
         for comment in comments
-        if string_contains(comment.content, '/exist.io/', 'existio:', *EMOJIS)
+        if string_contains(comment.content, *search)
     ]
     for comment_id in delete_comment_ids:
         await todoist_api.delete_comment(comment_id)
