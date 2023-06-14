@@ -128,11 +128,11 @@ async def comment_added(
         todoist_api: TodoistAPIAsync,
         existio_api: ExistioAPI,
 ):
-    text = comment.content.strip()
+    text = comment.content.strip().lower()
     if not text.startswith(PREFIX_COMMAND):
         return
     task_id = comment.item_id
-    command = text[len(PREFIX_COMMAND)]
+    command = text[len(PREFIX_COMMAND):].strip()
     if command == 'release':
         await release_tag(task_id, data_manager, todoist_api, existio_api)
         return

@@ -58,14 +58,17 @@ async def todoist_webhook(
         request: Request,
         webhook: todoist.Webhook,
         background_tasks: BackgroundTasks,
-        todoist_hmac_sha256=Header(default=None, alias='X-Todoist-HMAC-SHA256'),
+        todoist_hmac_sha256: str = Header(default=None, alias='X-Todoist-HMAC-SHA256'),
 ):
     if not ENV['DEBUG']:
+        if not todoist_hmac_sha256:
+            raise HTTPException(status_code=status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS,
+                                detail=f'Empty X-Todoist-HMAC-SHA256 header')
         calculated_hmac = base64.b64encode(hmac.new(
             ENV['TODOIST_CLIENT_SECRET'].encode(),
             msg=await request.body(),
             digestmod=hashlib.sha256,
-        ).digest())
+        ).digest()).decode()
         if todoist_hmac_sha256 != calculated_hmac:
             raise HTTPException(status_code=status.HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS,
                                 detail='Incorrect X-Todoist-HMAC-SHA256 header')
