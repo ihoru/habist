@@ -73,7 +73,7 @@ async def generate_stats(tag, month: date, existio_api: ExistioAPI):
 
 def string_contains(text, *substrings):
     return any(
-        substr in text
+        substr.lower() in text.lower()
         for substr in substrings
     )
 
