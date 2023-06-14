@@ -51,28 +51,22 @@ async def generate_stats(tag, existio_api: ExistioAPI):
     return result
 
 
-def contains_our_emoji(text):
-    for emoji in EMOJIS:
-        if text.find(emoji) != -1:
-            return True
-    return False
-
-
-async def find_stats_comments(task_id, todoist_api: TodoistAPIAsync) -> int or None:
-    comments = await todoist_api.get_comments(task_id=task_id)
-    comment_ids = []
-    for comment in comments:
-        if contains_our_emoji(comment.content):
-            comment_ids.append(comment.id)
-    return comment_ids
+def string_contains(text, *substrings):
+    return any(
+        substr in text
+        for substr in substrings
+    )
 
 
 async def post_stats(task_id, tag, existio_api: ExistioAPI, todoist_api: TodoistAPIAsync):
     stats = await generate_stats(tag, existio_api)
-    comment_ids = await find_stats_comments(task_id, todoist_api)
-    if comment_ids:
-        for comment_id in comment_ids:
-            await todoist_api.delete_comment(comment_id)
+    comments = await todoist_api.get_comments(task_id=task_id)
+    comment_ids = []
+    for comment in comments:
+        if string_contains(comment.content, *EMOJIS):
+            comment_ids.append(comment.id)
+    for comment_id in comment_ids:
+        await todoist_api.delete_comment(comment_id)
     await todoist_api.add_comment(stats, task_id=task_id)
     return stats
 
@@ -98,6 +92,7 @@ async def comment_added(
         return
     await data_manager.store(task_id, tag)
     await todoist_api.delete_comment(comment.id)
+    await delete_relevant_comment(task_id, todoist_api)
     await todoist_api.add_comment(existio_api.get_tag_url(tag), task_id=task_id)
     await existio_api.attributes_acquire([tag])
     stats = await generate_stats(tag, existio_api)
@@ -154,12 +149,16 @@ async def release_tag(
         return
     await data_manager.remove(task_id)
     await existio_api.attributes_release([tag])
-    delete_comment_ids = []
+    await delete_relevant_comment(task_id, todoist_api)
+
+
+async def delete_relevant_comment(task_id: str, todoist_api: TodoistAPIAsync):
     comments = await todoist_api.get_comments(task_id=task_id)
-    for comment in comments:
-        text = comment.content
-        if '/exist.io/' in text or 'existio:' in text or contains_our_emoji(text):
-            delete_comment_ids.append(comment.id)
+    delete_comment_ids = [
+        comment.id
+        for comment in comments
+        if string_contains(comment.content, '/exist.io/', 'existio:', *EMOJIS)
+    ]
     for comment_id in delete_comment_ids:
         await todoist_api.delete_comment(comment_id)
 

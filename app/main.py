@@ -77,7 +77,8 @@ async def todoist_webhook(
             (webhook.event_name.startswith('item:') and webhook.initiator.id == webhook.event_data.user_id)
     ):
         return 'Incorrect ownership, but I do not care'
-    logging.debug('Todoist.webhook: event_name=%s event_data=%r', webhook.event_name, webhook.event_data)
+    logging.info('Todoist.webhook: event_name=%s, event_data.id=%s', webhook.event_name, webhook.event_data.id)
+    logging.debug('Todoist.webhook: event_data=%r', webhook.event_data)
     background_tasks.add_task(
         tasks.EVEN_MAP[webhook.event_name],
         webhook.event_data,
