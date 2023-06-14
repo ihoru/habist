@@ -27,9 +27,9 @@ data_manager = DataManager(ENV['DATA_FILENAME'])
 
 async def process_task(task_id, tag):
     try:
-        print(f'starting {task_id = }, {tag = }')
+        logging.info(f'starting {task_id = }, {tag = }')
         texts = await tasks.post_stats(task_id, tag, todoist_api, existio_api)
-        print(f'finished {task_id = }, {tag = }')
+        logging.info(f'finished {task_id = }, {tag = }')
     except Exception as e:
         logging.warning(f'FAILURE: {task_id = }, {tag = }')
         if ENV['DEBUG']:
@@ -40,14 +40,17 @@ async def process_task(task_id, tag):
         logging.debug('Stats:\n%s\n', '--\n'.join(texts))
 
 
-async def main():
+async def main_one_by_one():
     data = await data_manager.all()
-    # Uncomment if it's needed to run each task one by one
-    # for task_id, tag in data.items():
-    #     # await tasks.delete_relevant_comment(task_id, todoist_api, include_exist_url=False)
-    #     await process_task(task_id, tag)
+    for task_id, tag in data.items():
+        await tasks.delete_relevant_comment(task_id, todoist_api, include_exist_url=False)  # reset all stats
+        await process_task(task_id, tag)
+        break
+    return 'ok'
 
-    # This will start update in parallel (10x speed increase)
+
+async def main_parallel():
+    data = await data_manager.all()
     await asyncio.gather(*[
         process_task(task_id, tag)
         for task_id, tag in data.items()
@@ -56,4 +59,6 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    # asyncio.run(main_one_by_one())
+    # This will start update in parallel (10x speed increase)
+    asyncio.run(main_parallel())
