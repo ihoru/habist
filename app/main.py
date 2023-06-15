@@ -27,7 +27,7 @@ logging_format = '%(asctime)s %(levelname)s:%(name)s %(filename)s:%(lineno)d %(f
 if ENV['DEBUG']:
     logging.basicConfig(level=logging.DEBUG, format=logging_format)
 else:
-    logging.basicConfig(format=logging_format)
+    logging.basicConfig(level=logging.INFO, format=logging_format)
 
 app = FastAPI(
     debug=ENV['DEBUG'],
