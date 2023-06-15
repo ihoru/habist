@@ -49,8 +49,6 @@ async def generate_stats(tag, month: date, existio_api: ExistioAPI):
     today = date.today()
 
     values = await existio_api.attribute_values(tag, date_min=month, date_max=month_end)
-    if not values:
-        return
     result = generate_stats_header(month)
     # empty days in the beginning of the month for the offset
     result += '\n' + month.weekday() * EMOJI_EMPTY
