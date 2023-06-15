@@ -117,6 +117,7 @@ class ExistioAPI:
             ])
 
     async def attributes_update(self, data: List[AttributeValue]):
+        await self.attributes_acquire([item.name for item in data])
         for chunk in utils.chunks(data, self.LIMIT_MAXIMUM_OBJECTS_PER_REQUEST):
             await self.post('/attributes/update/', json=list(map(methodcaller('_asdict'), chunk)))
 
