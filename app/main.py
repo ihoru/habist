@@ -74,14 +74,15 @@ async def todoist_webhook(
                                 detail='Incorrect X-Todoist-HMAC-SHA256 header')
     if webhook.event_name not in tasks.EVEN_MAP:
         raise RequestValidationError([ErrorWrapper(ValueError('Unknown event'), ('body', 'event_name'))])
-    if not (
+    owner = (
             (webhook.event_name.startswith('note:') and webhook.initiator.id == webhook.event_data.item.user_id)
             or
             (webhook.event_name.startswith('item:') and webhook.initiator.id == webhook.event_data.user_id)
-    ):
+    )
+    logging.info('Todoist.webhook: event_name=%s, owner=%r, event_data=%r', webhook.event_name, owner,
+                 webhook.event_data)
+    if not owner:
         return 'Incorrect ownership, but I do not care'
-    logging.info('Todoist.webhook: event_name=%s, event_data.id=%s', webhook.event_name, webhook.event_data.id)
-    logging.debug('Todoist.webhook: event_data=%r', webhook.event_data)
     background_tasks.add_task(
         tasks.EVEN_MAP[webhook.event_name],
         webhook.event_data,

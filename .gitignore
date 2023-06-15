@@ -154,3 +154,4 @@ cython_debug/
 
 .idea/
 /run.sh
+/cron.sh
