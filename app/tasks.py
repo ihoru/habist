@@ -28,7 +28,7 @@ EXIST_PART_URL = '/exist.io/'
 
 
 def current_date():
-    now = datetime.utcnow()
+    now = datetime.now()
     if now.hour < DAY_SLICE_HOUR:
         now = now - timedelta(hours=DAY_SLICE_HOUR + 1)
     return now.strftime('%Y-%m-%d')
