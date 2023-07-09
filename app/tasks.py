@@ -28,11 +28,15 @@ PREFIX_COMMAND = 'existio:'  # This is being interpreted as a command
 EXIST_PART_URL = '/exist.io/'
 
 
-def current_date():
+def local_now():
     now = datetime.now()
     if now.hour < DAY_SLICE_HOUR:
         now = now - timedelta(hours=DAY_SLICE_HOUR + 1)
-    return now.strftime('%Y-%m-%d')
+    return now
+
+
+def current_date():
+    return utils.format_date(local_now())
 
 
 def generate_stats_header(month: date):
@@ -133,6 +137,28 @@ async def comment_added(
         if tag:
             await delete_relevant_comment(task_id, todoist_api, include_exist_url=False)
             await post_stats(task_id, tag, todoist_api, existio_api)
+        return
+    elif command == 'yesterday' or command.startswith(('on:', 'off:')):
+        tag = await data_manager.get(task_id)
+        if not tag:
+            return
+        if command == 'yesterday':
+            state = 'on'
+            target_date = local_now() - timedelta(days=1)
+        else:
+            state, target_date = command.split(':', maxsplit=1)
+            if state not in ('on', 'off'):
+                return
+            try:
+                target_date = date.fromisoformat(target_date)
+            except ValueError:
+                return
+
+        value = state == 'on'
+        await existio_api.attributes_update([
+            AttributeValue(name=tag, date=utils.format_date(target_date), value=value),
+        ])
+        await post_stats(task_id, tag, todoist_api, existio_api)
         return
     tag = command.strip('-').replace(' ', '_')
     if not tag:
