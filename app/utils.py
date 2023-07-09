@@ -1,5 +1,6 @@
 import sys
 from collections import OrderedDict
+from datetime import date
 
 
 class OrderedDefaultDict(OrderedDict):
@@ -60,3 +61,15 @@ def my_bool(v, strict=False):
 def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
+
+
+def format_date(d: date):
+    return d.strftime('%Y-%m-%d')
+
+
+def string_contains(text, *substrings):
+    text = text.lower()
+    return any(
+        substr.lower() in text
+        for substr in substrings
+    )
