@@ -43,7 +43,8 @@ async def process_task(task_id, tag):
 async def main_one_by_one():
     data = await data_manager.all()
     for task_id, tag in data.items():
-        await tasks.delete_relevant_comment(task_id, todoist_api, include_exist_url=False)  # reset all stats
+        # reset all stats
+        # await tasks.delete_relevant_comment(task_id, todoist_api, include_exist_url=False)
         await process_task(task_id, tag)
         break
     return 'ok'
