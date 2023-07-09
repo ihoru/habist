@@ -95,11 +95,17 @@ async def todoist_webhook(
 
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
-    logging.warning('%r', exc)
-    return await http_exception_handler(request, exc)
+    logging.warning('%r, headers=%s', exc, exc.headers)
+    if app.debug:
+        return await http_exception_handler(request, exc)
+    # we don't want Todoist to retry
+    return 'not ok, but okay'
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logging.info('%r', exc)
-    return await request_validation_exception_handler(request, exc)
+    logging.warning('%r, body=%s', exc, exc.body)
+    if app.debug:
+        return await request_validation_exception_handler(request, exc)
+    # we don't want Todoist to retry
+    return 'not ok, but okay'
