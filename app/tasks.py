@@ -155,9 +155,6 @@ async def comment_added(
             target_date = local_now() - timedelta(days=1)
         else:
             state, target_date = command.split(':', maxsplit=1)
-            if state not in ('on', 'off'):
-                await todoist_api.add_comment('Unknown state', task_id=task_id)
-                return
             try:
                 target_date = date.fromisoformat(target_date)
             except ValueError:
