@@ -22,6 +22,7 @@ EMOJIS = [
 ]
 
 DAY_SLICE_HOUR = 5  # next day starts at this hour
+DAY_TILL_UPDATE_PREVIOUS_MONTH = 10  # till this day of the month we update previous month stats
 PREVIOUS_MONTHS_STATS = 2
 STATS_HEADER_FORMAT = '# {month} {year} {emoji}'
 PREFIX_COMMAND = 'existio:'  # This is being interpreted as a command
@@ -76,12 +77,15 @@ async def generate_stats(tag, month: date, existio_api: ExistioAPI):
 
 async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI):
     today = date.today()
-    today -= timedelta(days=today.day - 1)
+    current_month = today - timedelta(days=today.day - 1)
+    previous_month = current_month - timedelta(days=1)
+    previous_month -= timedelta(days=previous_month.day - 1)
     months = [
-        today - timedelta(days=30 * i)
+        current_month - timedelta(days=30 * i)
         for i in range(PREVIOUS_MONTHS_STATS + 1)
     ]
     months = [
+        # set first day of the month
         month - timedelta(days=month.day - 1)
         for month in months
     ]
@@ -90,10 +94,11 @@ async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: Ex
     generate_months = []
     delete_comment_ids = []
     comments = await todoist_api.get_comments(task_id=task_id)
-    for i, month in enumerate(months, start=1):
-        last_month = i == len(months)  # force update
+    for month in months:
+        need_update = month == current_month \
+                      or month == previous_month and today.day < DAY_TILL_UPDATE_PREVIOUS_MONTH
         header = generate_stats_header(month)
-        if last_month:
+        if need_update:
             for comment in comments:
                 if utils.string_contains(comment.content, header):
                     delete_comment_ids.append(comment.id)
