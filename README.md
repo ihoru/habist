@@ -2,39 +2,47 @@
 
 ## About
 
-This is a FastAPI project (Python) with a set of webhooks for Todoist to mark/unmark custom tags in Exist.io by simply
-marking tasks as done.
+Habist is a FastAPI project written in Python that provides webhooks for Todoist. It allows you to mark and unmark
+custom tags in Exist.io by simply completing tasks in Todoist. This integration helps you synchronize your habit
+tracking between Todoist and Exist.io.
 
-## Reason
+## Motivation
 
-I log habits in [Exist.io](https://exist.io/), but I also use [Todoist](https://todoist.io/) to have reminders about
-these habits. Thus, I created these webhooks to sync marks about habits being done in Todoist to Exist.
+I use [Exist.io](https://exist.io/) to log my habits, but I also rely on [Todoist](https://todoist.io/) for task
+management and reminders. To bridge the gap between the two, I created Habist. It enables me to update Exist.io with the
+completion status of my tasks in Todoist, ensuring that my habit tracking remains accurate.
 
 ## Commands
 
-Use these commands by commenting a task in Todoist:
+Use these commands by commenting on a task in Todoist:
 
-* `existio:TAGNAME` - to connect this task with a custom tag in Exist.io
-* `existio:release` - to disconnect task from custom tag in Exist.io (or simply delete the task)
+* `existio:TAGNAME` - to connect the task with a custom tag in Exist.io
+* `existio:release` - to disconnect the task from a custom tag in Exist.io (or simply delete the task)
 * `existio:yesterday` - to set this custom tag in Exist.io for yesterday
 * `existio:on:YYYY-MM-DD` - to set this custom tag in Exist.io for custom date
 * `existio:off:YYYY-MM-DD` - to UNset this custom tag in Exist.io for yesterday
 * `existio:update` - force stats update
 
-**To set custom tag for today, simply check task as done! ✅✅✅**
+**To set the custom tag for today, simply check task as done! ✅✅✅**
 
 ## Demo
 
-After task connection with custom tag it will have comments with up-to-date statistics:
+After the task connected with the custom tag the former will have comments with up-to-date statistics:
 
-![](https://raw.githubusercontent.com/ihoru/habist/master/docs/images/todoist_task.png "Todoist task with Exist.io integration")
+![Todoist task with Exist.io integration](docs/images/todoist_task.png)
 
 ## Useful links
 
-* https://developer.todoist.com/appconsole.html - to manage apps in Todoist
-* https://exist.io/account/apps/ - manage apps in Exist.io
+* [Todoist App Console](https://developer.todoist.com/appconsole.html)
+* [Exist.io App Management](https://exist.io/account/apps/)
 
-## Foreword
+## Note
 
-This project was created for my own needs and also to practice using FastAPI, but I decided to share it with the world.
-If you are interested in using it for yourself contact me. Thanks!
+Habist was initially developed to fulfill my own needs and to practice using FastAPI. However, I've decided to share it
+with the world.
+
+If you're interested in using Habist for yourself, feel free to contact me. Thank you!
+
+## Licence
+
+MIT License
