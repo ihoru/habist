@@ -132,6 +132,7 @@ async def comment_added(
     text = comment.content.strip().lower()
     if not text.startswith(PREFIX_COMMAND):
         return
+    comment_id = comment.id
     task_id = comment.item_id
     command = text[len(PREFIX_COMMAND):].strip()
     if command == 'release':
@@ -144,8 +145,10 @@ async def comment_added(
             await post_stats(task_id, tag, todoist_api, existio_api)
         return
     elif command == 'yesterday' or command.startswith(('on:', 'off:')):
+        await todoist_api.delete_comment(comment_id)
         tag = await data_manager.get(task_id)
         if not tag:
+            await todoist_api.add_comment('Tag was not found', task_id=task_id)
             return
         if command == 'yesterday':
             state = 'on'
@@ -153,10 +156,12 @@ async def comment_added(
         else:
             state, target_date = command.split(':', maxsplit=1)
             if state not in ('on', 'off'):
+                await todoist_api.add_comment('Unknown state', task_id=task_id)
                 return
             try:
                 target_date = date.fromisoformat(target_date)
             except ValueError:
+                await todoist_api.add_comment('Wrong date', task_id=task_id)
                 return
 
         value = state == 'on'
@@ -167,6 +172,7 @@ async def comment_added(
         return
     tag = command.strip('-').replace(' ', '_')
     if not tag:
+        await todoist_api.add_comment('Empty tag name', task_id=task_id)
         return
     await data_manager.store(task_id, tag)
     await delete_relevant_comment(task_id, todoist_api)
