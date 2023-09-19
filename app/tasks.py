@@ -182,6 +182,9 @@ async def comment_added(
         if command == 'yesterday':
             state = 'on'
             target_date = local_now() - timedelta(days=1)
+        elif command == 'off:yesterday':
+            state = 'off'
+            target_date = local_now() - timedelta(days=1)
         else:
             state, target_date = command.split(':', maxsplit=1)
             try:
