@@ -98,14 +98,16 @@ async def generate_stats(tag, month: date, existio_api: ExistioAPI) -> (int, str
     return succeed, f'{header}\n{summary}\n{calendar}'
 
 
-async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI):
+async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI, update_months: int = None):
+    if update_months is None:
+        update_months = PREVIOUS_MONTHS_STATS
     today = date.today()
     current_month = today - timedelta(days=today.day - 1)
     previous_month = current_month - timedelta(days=1)
     previous_month -= timedelta(days=previous_month.day - 1)
     months = [
         current_month - timedelta(days=30 * i)
-        for i in range(PREVIOUS_MONTHS_STATS + 1)
+        for i in range(update_months + 1)
     ]
     months = [
         # set first day of the month
