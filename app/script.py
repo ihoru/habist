@@ -50,6 +50,15 @@ async def process_one_task(task_id: str, force: bool, update_months: int):
     return 'ok'
 
 
+async def process_task_description(task_id: str, show_days: int):
+    data = await data_manager.all()
+    tag = data[task_id]
+    description = await tasks.generate_description(tag, existio_api, show_days=show_days)
+    await todoist_api.update_task(task_id, description=description)
+    print(description)
+    return 'ok'
+
+
 async def process_all_tasks(force: bool, update_months: int):
     data = await data_manager.all()
     if force:
@@ -67,22 +76,32 @@ async def process_all_tasks(force: bool, update_months: int):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('action', choices=['update_all', 'update_task'], help='Which action to perform')
-    parser.add_argument('--force', action='store_true', help='Force update all months')
+    parser.add_argument('action', help='Which action to perform', choices=[
+        'update_all',
+        'update_task',
+        'generate_description',
+    ])
     known_args = parser.parse_known_args()[0]
+    if known_args.action == 'generate_description':
+        parser.add_argument('task_id', help='Selected task')
+        parser.add_argument('--show-days', '-d', type=int, help='How many days to show in task\'s description')
+    else:
+        parser.add_argument('--force', action='store_true', help='Force update all months')
+        known_args = parser.parse_known_args()[0]
 
-    parser.add_argument('--update-months', '-m', help='How many months to process', type=int,
-                        default=12 if known_args.force else None)
-    if known_args.action == 'update_task':
-        parser.add_argument('task_id', type=int, help='Which task to update (only for action=update_task)')
+        parser.add_argument('--update-months', '-m', type=int, help='How many months to process',
+                            default=12 if known_args.force else None)
+        if known_args.action == 'update_task':
+            parser.add_argument('task_id', help='Selected task')
     args = parser.parse_args()
 
     if args.action == 'update_all':
         # This will start update in parallel (10x speed increase)
         asyncio.run(process_all_tasks(args.force, args.update_months))
     elif args.action == 'update_task':
-        assert args.task_id, 'task_id should not be empty'
-        asyncio.run(process_one_task(str(args.task_id), args.force, args.update_months))
+        asyncio.run(process_one_task(args.task_id, args.force, args.update_months))
+    elif args.action == 'generate_description':
+        asyncio.run(process_task_description(args.task_id, args.show_days))
 
 
 if __name__ == '__main__':

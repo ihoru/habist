@@ -23,6 +23,7 @@ EMOJIS = [
 
 DAY_SLICE_HOUR = 5  # next day starts at this hour
 DAY_TILL_UPDATE_PREVIOUS_MONTH = 10  # till this day of the month we update previous month stats
+SHOW_DAYS_IN_DESCRIPTION = 16  # show this amount of days in description
 PREVIOUS_MONTHS_STATS = 2
 STATS_HEADER_FORMAT = '# {month} {year} {emoji}'
 STATS_SUMMARY_FORMAT = '`{EMOJI_SUCCEED} {succeed} {EMOJI_FAILED} {failed}%s`'
@@ -98,7 +99,26 @@ async def generate_stats(tag, month: date, existio_api: ExistioAPI) -> (int, str
     return succeed, f'{header}\n{summary}\n{calendar}'
 
 
-async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI, update_months: int = None):
+async def generate_description(tag, existio_api: ExistioAPI, show_days: int = None) -> str:
+    today = date_min = date.today()
+    date_min -= timedelta(days=show_days or SHOW_DAYS_IN_DESCRIPTION)
+
+    values = await existio_api.attribute_values(tag, date_min=date_min, date_max=today)
+    description = ''
+    curr_date = today
+    while curr_date >= date_min:
+        if values.get(curr_date):
+            description += EMOJI_SUCCEED
+        elif curr_date == today:
+            description += EMOJI_TODAY
+        else:
+            description += EMOJI_FAILED
+        curr_date -= timedelta(days=1)
+    return description
+
+
+async def post_stats(task_id: str, tag: str, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI,
+                     update_months: int = None):
     if update_months is None:
         update_months = PREVIOUS_MONTHS_STATS
     today = date.today()
@@ -149,6 +169,9 @@ async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: Ex
             continue
         await todoist_api.add_comment(text, task_id=task_id)
         texts.append(text)
+    description = await generate_description(tag, existio_api)
+    texts.append(description)
+    await todoist_api.update_task(task_id, description=description)
     return texts
 
 
