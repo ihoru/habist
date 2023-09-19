@@ -25,6 +25,9 @@ DAY_SLICE_HOUR = 5  # next day starts at this hour
 DAY_TILL_UPDATE_PREVIOUS_MONTH = 10  # till this day of the month we update previous month stats
 PREVIOUS_MONTHS_STATS = 2
 STATS_HEADER_FORMAT = '# {month} {year} {emoji}'
+STATS_SUMMARY_FORMAT = '`{EMOJI_SUCCEED} {succeed} {EMOJI_FAILED} {failed}%s`'
+STATS_SUMMARY_WITH_UNKNOWN_FORMAT = STATS_SUMMARY_FORMAT % ' {EMOJI_EMPTY} {unknown}'
+STATS_SUMMARY_FORMAT %= ''
 PREFIX_COMMAND = 'existio:'  # This is being interpreted as a command
 EXIST_PART_URL = '/exist.io/'
 
@@ -48,31 +51,51 @@ def generate_stats_header(month: date):
     )
 
 
-async def generate_stats(tag, month: date, existio_api: ExistioAPI):
+def generate_stats_summary(succeed: int, failed: int, unknown: int = None):
+    template = STATS_SUMMARY_FORMAT if unknown is None else STATS_SUMMARY_WITH_UNKNOWN_FORMAT
+    return template.format(
+        EMOJI_SUCCEED=EMOJI_SUCCEED,
+        EMOJI_FAILED=EMOJI_FAILED,
+        EMOJI_EMPTY=EMOJI_EMPTY,
+        succeed=succeed,
+        failed=failed,
+        unknown=unknown,
+    )
+
+
+async def generate_stats(tag, month: date, existio_api: ExistioAPI) -> (int, str):
     assert month.day == 1
     month_end = month + timedelta(days=31)
     month_end -= timedelta(days=month_end.day)
     today = date.today()
 
     values = await existio_api.attribute_values(tag, date_min=month, date_max=month_end)
-    result = generate_stats_header(month)
+    succeed = failed = unknown = 0
     # empty days in the beginning of the month for the offset
-    result += '\n' + month.weekday() * EMOJI_EMPTY
+    calendar = month.weekday() * EMOJI_EMPTY
     curr_date = month
     while curr_date <= month_end:
         if curr_date > today:
-            result += EMOJI_EMPTY
+            unknown += 1
+            calendar += EMOJI_EMPTY
         elif values.get(curr_date):
-            result += EMOJI_SUCCEED
+            succeed += 1
+            calendar += EMOJI_SUCCEED
         elif curr_date == today:
-            result += EMOJI_TODAY
+            unknown += 1
+            calendar += EMOJI_TODAY
         else:
-            result += EMOJI_FAILED
+            failed += 1
+            calendar += EMOJI_FAILED
         if curr_date.weekday() == 6:
             # Sunday - new line
-            result += '\n'
+            calendar += '\n'
         curr_date += timedelta(days=1)
-    return result
+    if month != today.replace(day=1):
+        unknown = None
+    header = generate_stats_header(month)
+    summary = generate_stats_summary(succeed, failed, unknown=unknown)
+    return succeed, f'{header}\n{summary}\n{calendar}'
 
 
 async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI):
@@ -115,11 +138,15 @@ async def post_stats(task_id, tag, todoist_api: TodoistAPIAsync, existio_api: Ex
     for comment_id in delete_comment_ids:
         await todoist_api.delete_comment(comment_id)
     texts = []
+    have_succeed_before = False
     for month in generate_months:
-        stats = await generate_stats(tag, month, existio_api)
-        if stats:
-            await todoist_api.add_comment(stats, task_id=task_id)
-            texts.append(stats)
+        succeed, text = await generate_stats(tag, month, existio_api)
+        if succeed:
+            have_succeed_before = True
+        elif not have_succeed_before:
+            continue
+        await todoist_api.add_comment(text, task_id=task_id)
+        texts.append(text)
     return texts
 
 
