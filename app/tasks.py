@@ -206,7 +206,7 @@ async def comment_added(
             state = 'on'
             target_date = local_now() - timedelta(days=1)
         elif ':' in command:
-            state, target_date = command.split(':', maxsplit=1)
+            state, target_date = map(str.strip, command.split(':', maxsplit=1))
             if target_date == 'yesterday':
                 target_date = local_now() - timedelta(days=1)
             elif target_date == 'today':
