@@ -21,7 +21,8 @@ Use these commands by commenting on a task in Todoist:
 * `existio:yesterday` - to set this custom tag in Exist.io for yesterday
 * `existio:on:YYYY-MM-DD` - to set this custom tag in Exist.io for custom date
 * `existio:off:YYYY-MM-DD` - to UNset this custom tag in Exist.io for yesterday
-* `existio:off:yesterday` - to set this custom tag in Exist.io for yesterday
+* `existio:off:today` - to UNset this custom tag in Exist.io for today
+* `existio:off:yesterday` - to UNset this custom tag in Exist.io for yesterday
 * `existio:update` - force stats update
 
 **To set the custom tag for today, simply check task as done! ✅✅✅**

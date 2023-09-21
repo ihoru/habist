@@ -200,21 +200,26 @@ async def comment_added(
         await todoist_api.delete_comment(comment_id)
         tag = await data_manager.get(task_id)
         if not tag:
-            await todoist_api.add_comment('Tag was not found', task_id=task_id)
+            await todoist_api.add_comment(f'{EMOJI_FAILED} Tag "{tag}" was not found', task_id=task_id)
             return
         if command == 'yesterday':
             state = 'on'
             target_date = local_now() - timedelta(days=1)
-        elif command == 'off:yesterday':
-            state = 'off'
-            target_date = local_now() - timedelta(days=1)
-        else:
+        elif ':' in command:
             state, target_date = command.split(':', maxsplit=1)
-            try:
-                target_date = date.fromisoformat(target_date)
-            except ValueError:
-                await todoist_api.add_comment('Wrong date', task_id=task_id)
-                return
+            if target_date == 'yesterday':
+                target_date = local_now() - timedelta(days=1)
+            elif target_date == 'today':
+                target_date = local_now()
+            else:
+                try:
+                    target_date = date.fromisoformat(target_date)
+                except ValueError:
+                    await todoist_api.add_comment(f'{EMOJI_FAILED} Wrong date "{target_date}"', task_id=task_id)
+                    return
+        else:
+            await todoist_api.add_comment(f'{EMOJI_FAILED} Wrong command "{command}"', task_id=task_id)
+            return
 
         value = state == 'on'
         await existio_api.attributes_update([
