@@ -271,9 +271,10 @@ async def task_updated(
     tag = await data_manager.get(task_id)
     if not tag:
         return
-    if not task.description.startswith('/'):
+    description = task.description.strip()
+    if not description.startswith('/'):
         return
-    command = task.description[1:]
+    command = description[1:]
     result = await process_command(command, task_id, None, data_manager, todoist_api, existio_api)
     if result is not False:
         description = await generate_description(tag, existio_api)
