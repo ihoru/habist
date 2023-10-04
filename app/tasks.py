@@ -290,6 +290,9 @@ async def task_completed(
     tag = await data_manager.get(task_id)
     if not tag:
         return
+    if task.checked:
+        await release_tag(task.id, data_manager, todoist_api, existio_api)
+        return
     await existio_api.attributes_update([
         AttributeValue(name=tag, date=current_date()),
     ])
