@@ -5,7 +5,7 @@ from todoist_api_python.api_async import TodoistAPIAsync
 import utils
 from data_manager import DataManager
 from existio import ExistioAPI, AttributeValue
-from todoist import *
+from todoist import Comment, Task
 
 EMOJI_STATS = '📊'
 EMOJI_EMPTY = '⬜'
@@ -187,6 +187,17 @@ async def comment_added(
     comment_id = comment.id
     task_id = comment.item_id
     command = text[len(PREFIX_COMMAND):].strip()
+    await process_command(command, task_id, comment_id, data_manager, todoist_api, existio_api)
+
+
+async def process_command(
+        command: str,
+        task_id: str,
+        comment_id: str | None,
+        data_manager: DataManager,
+        todoist_api: TodoistAPIAsync,
+        existio_api: ExistioAPI,
+):
     if command == 'release':
         await release_tag(task_id, data_manager, todoist_api, existio_api)
         return
@@ -200,8 +211,8 @@ async def comment_added(
         await todoist_api.delete_comment(comment_id)
         tag = await data_manager.get(task_id)
         if not tag:
-            await todoist_api.add_comment(f'{EMOJI_FAILED} Tag "{tag}" was not found', task_id=task_id)
-            return
+            await answer_command(task_id, f'{EMOJI_FAILED} Tag "{tag}" was not found', comment_id, todoist_api)
+            return False
         if command == 'yesterday':
             state = 'on'
             target_date = local_now() - timedelta(days=1)
@@ -215,10 +226,10 @@ async def comment_added(
                 try:
                     target_date = date.fromisoformat(target_date)
                 except ValueError:
-                    await todoist_api.add_comment(f'{EMOJI_FAILED} Wrong date "{target_date}"', task_id=task_id)
-                    return
+                    await answer_command(task_id, f'{EMOJI_FAILED} Wrong date "{target_date}"', comment_id, todoist_api)
+                    return False
         else:
-            await todoist_api.add_comment(f'{EMOJI_FAILED} Wrong command "{command}"', task_id=task_id)
+            await answer_command(task_id, f'{EMOJI_FAILED} Wrong command "{command}"', comment_id, todoist_api)
             return
 
         value = state == 'on'
@@ -229,13 +240,44 @@ async def comment_added(
         return
     tag = command.strip('-').replace(' ', '_')
     if not tag:
-        await todoist_api.add_comment('Empty tag name', task_id=task_id)
-        return
+        await answer_command(task_id, 'Empty tag name', comment_id, todoist_api)
+        return False
     await data_manager.store(task_id, tag)
     await delete_relevant_comment(task_id, todoist_api)
     await todoist_api.add_comment(existio_api.get_tag_url(tag), task_id=task_id)
     await existio_api.attributes_acquire([tag])
     await post_stats(task_id, tag, todoist_api, existio_api)
+
+
+async def answer_command(
+        task_id: str,
+        text: str,
+        comment_id: str | None,
+        todoist_api: TodoistAPIAsync,
+):
+    if comment_id:
+        await todoist_api.add_comment(text, task_id=task_id)
+    else:
+        await todoist_api.update_task(task_id, description=text)
+
+
+async def task_updated(
+        task: Task,
+        data_manager: DataManager,
+        todoist_api: TodoistAPIAsync,
+        existio_api: ExistioAPI,
+):
+    task_id = task.id
+    tag = await data_manager.get(task_id)
+    if not tag:
+        return
+    if not task.description.startswith('/'):
+        return
+    command = task.description[1:]
+    result = await process_command(command, task_id, None, data_manager, todoist_api, existio_api)
+    if result is not False:
+        description = await generate_description(tag, existio_api)
+        await todoist_api.update_task(task_id, description=description)
 
 
 async def task_completed(
@@ -309,6 +351,7 @@ async def delete_relevant_comment(task_id: str, todoist_api: TodoistAPIAsync, in
 
 EVEN_MAP = {
     'note:added': comment_added,
+    'item:updated': task_updated,
     'item:completed': task_completed,
     'item:uncompleted': task_uncompleted,
     'item:deleted': task_deleted,

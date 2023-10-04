@@ -25,6 +25,8 @@ Use these commands by commenting on a task in Todoist:
 * `existio:off:yesterday` - to UNset this custom tag in Exist.io for yesterday
 * `existio:update` - force stats update
 
+Another way to execute command is to change Task's description to `/COMMAND`.
+
 **To set the custom tag for today, simply check task as done! ✅✅✅**
 
 ## Demo

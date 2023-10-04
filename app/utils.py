@@ -58,9 +58,9 @@ def my_bool(v, strict=False):
     return bool(v)
 
 
-def chunks(l, n):
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
+def chunks(iterable, n):
+    for i in range(0, len(iterable), n):
+        yield iterable[i:i + n]
 
 
 def format_date(d: date):
