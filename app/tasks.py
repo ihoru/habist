@@ -242,6 +242,11 @@ async def process_command(
     if not tag:
         await answer_command(task_id, 'Empty tag name', comment_id, todoist_api)
         return False
+    if not tag.startswith('+'):
+        await answer_command(task_id, f'Unknown command: "{command}". '
+                                      f'Add "+" in the beginning to connect with a tag', comment_id, todoist_api)
+        return False
+    tag = tag[1:]
     await data_manager.store(task_id, tag)
     await delete_relevant_comment(task_id, todoist_api)
     await todoist_api.add_comment(existio_api.get_tag_url(tag), task_id=task_id)
