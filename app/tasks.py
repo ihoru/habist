@@ -208,7 +208,8 @@ async def process_command(
             await post_stats(task_id, tag, todoist_api, existio_api)
         return
     elif command == 'yesterday' or command.startswith(('on:', 'off:')):
-        await todoist_api.delete_comment(comment_id)
+        if comment_id:
+            await todoist_api.delete_comment(comment_id)
         tag = await data_manager.get(task_id)
         if not tag:
             await answer_command(task_id, f'{EMOJI_FAILED} Tag "{tag}" was not found', comment_id, todoist_api)
