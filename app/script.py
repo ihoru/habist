@@ -29,7 +29,7 @@ data_manager = DataManager(ENV['DATA_FILENAME'])
 async def update_task_stats(task_id, tag, update_months: int):
     try:
         logging.info(f'starting {task_id = }, {tag = }')
-        texts = await tasks.post_stats(task_id, tag, todoist_api, existio_api, update_months=update_months)
+        texts = await tasks.post_stats(task_id, tag, todoist_api, existio_api, update_months=update_months, force=False)
         logging.info(f'finished {task_id = }, {tag = }')
     except Exception as e:
         logging.warning(f'FAILURE: {task_id = }, {tag = }')

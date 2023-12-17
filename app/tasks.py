@@ -118,7 +118,7 @@ async def generate_description(tag, existio_api: ExistioAPI, show_days: int = No
 
 
 async def post_stats(task_id: str, tag: str, todoist_api: TodoistAPIAsync, existio_api: ExistioAPI,
-                     update_months: int = None):
+                     update_months: int = None, force=True):
     if update_months is None:
         update_months = PREVIOUS_MONTHS_STATS
     today = date.today()
@@ -160,12 +160,12 @@ async def post_stats(task_id: str, tag: str, todoist_api: TodoistAPIAsync, exist
     for comment_id in delete_comment_ids:
         await todoist_api.delete_comment(comment_id)
     texts = []
-    have_succeed_before = False
     for month in generate_months:
         succeed, text = await generate_stats(tag, month, existio_api)
         if succeed:
-            have_succeed_before = True
-        elif not have_succeed_before:
+            force = True
+        elif not force:
+            # skip months with no successful values
             continue
         await todoist_api.add_comment(text, task_id=task_id)
         texts.append(text)
