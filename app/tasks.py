@@ -269,9 +269,6 @@ async def task_updated(
         existio_api: ExistioAPI,
 ):
     task_id = task.id
-    tag = await data_manager.get(task_id)
-    if not tag:
-        return
     description = task.description.strip()
     if not description.startswith('/'):
         return
