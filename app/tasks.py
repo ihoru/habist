@@ -213,7 +213,7 @@ async def process_command(
         tag = await data_manager.get(task_id)
         if not tag:
             await answer_command(task_id, f'{EMOJI_FAILED} Tag "{tag}" was not found', comment_id, todoist_api)
-            return False
+            return
         if command == 'yesterday':
             state = 'on'
             target_date = local_now() - timedelta(days=1)
@@ -228,7 +228,7 @@ async def process_command(
                     target_date = date.fromisoformat(target_date)
                 except ValueError:
                     await answer_command(task_id, f'{EMOJI_FAILED} Wrong date "{target_date}"', comment_id, todoist_api)
-                    return False
+                    return
         else:
             await answer_command(task_id, f'{EMOJI_FAILED} Wrong command "{command}"', comment_id, todoist_api)
             return
@@ -239,15 +239,10 @@ async def process_command(
         ])
         await post_stats(task_id, tag, todoist_api, existio_api)
         return
-    tag = command.strip('-').replace(' ', '_')
+    tag = command.strip('-').strip().replace(' ', '_')
     if not tag:
         await answer_command(task_id, 'Empty tag name', comment_id, todoist_api)
-        return False
-    if not tag.startswith('+'):
-        await answer_command(task_id, f'Unknown command: "{command}". '
-                                      f'Add "+" in the beginning to connect with a tag', comment_id, todoist_api)
-        return False
-    tag = tag[1:]
+        return
     await data_manager.store(task_id, tag)
     await delete_relevant_comment(task_id, todoist_api)
     await todoist_api.add_comment(existio_api.get_tag_url(tag), task_id=task_id)
@@ -281,10 +276,7 @@ async def task_updated(
     if not description.startswith('/'):
         return
     command = description[1:]
-    result = await process_command(command, task_id, None, data_manager, todoist_api, existio_api)
-    if result is not False:
-        description = await generate_description(tag, existio_api)
-        await todoist_api.update_task(task_id, description=description)
+    await process_command(command, task_id, None, data_manager, todoist_api, existio_api)
 
 
 async def task_completed(
